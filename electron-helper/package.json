@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "Electron helper for capturing OAuth redirects with custom URL schemes",
   "main": "main.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "electron .",
     "package": "electron-packager . FrameioOAuth --platform=darwin --arch=universal --overwrite",
     "package:mac-arm": "electron-packager . FrameioOAuth --platform=darwin --arch=arm64 --overwrite",
-    "package:mac-intel": "electron-packager . FrameioOAuth --platform=darwin --arch=x64 --overwrite"
+    "package:mac-intel": "electron-packager . FrameioOAuth --platform=darwin --arch=x64 --overwrite",
+    "package:linux": "electron-packager . FrameioOAuth --platform=linux --arch=x64 --overwrite",
+    "package:linux-arm": "electron-packager . FrameioOAuth --platform=linux --arch=arm64 --overwrite",
+    "package:win": "electron-packager . FrameioOAuth --platform=win32 --arch=x64 --overwrite"
   },
   "keywords": ["oauth", "frameio", "adobe", "electron"],
   "author": "",

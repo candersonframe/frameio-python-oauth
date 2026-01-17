@@ -24,10 +24,19 @@ PROJECT_DIR = SRC_DIR.parent
 ELECTRON_HELPER_DIR = PROJECT_DIR / "electron-helper"
 
 # Platform-specific packaged app locations
+# On macOS: returns .app bundle path
+# On Linux: returns directory containing the executable
+# On Windows: returns directory containing the .exe
 PACKAGED_APPS = {
+    # macOS
     "darwin": ELECTRON_HELPER_DIR / "FrameioOAuth-darwin-universal" / "FrameioOAuth.app",
     "darwin_arm64": ELECTRON_HELPER_DIR / "FrameioOAuth-darwin-arm64" / "FrameioOAuth.app",
     "darwin_x64": ELECTRON_HELPER_DIR / "FrameioOAuth-darwin-x64" / "FrameioOAuth.app",
+    # Linux
+    "linux_x64": ELECTRON_HELPER_DIR / "FrameioOAuth-linux-x64",
+    "linux_arm64": ELECTRON_HELPER_DIR / "FrameioOAuth-linux-arm64",
+    # Windows
+    "win32_x64": ELECTRON_HELPER_DIR / "FrameioOAuth-win32-x64",
 }
 
 # Data directory for communication with Electron
@@ -39,12 +48,25 @@ def find_packaged_app() -> Optional[Path]:
     import platform
     
     system = platform.system().lower()
+    machine = platform.machine().lower()
     
     if system == "darwin":
         # Try universal first, then arch-specific
         for key in ["darwin", "darwin_arm64", "darwin_x64"]:
             if key in PACKAGED_APPS and PACKAGED_APPS[key].exists():
                 return PACKAGED_APPS[key]
+    elif system == "linux":
+        # Determine architecture
+        arch = "arm64" if machine in ("aarch64", "arm64") else "x64"
+        key = f"linux_{arch}"
+        if key in PACKAGED_APPS and PACKAGED_APPS[key].exists():
+            return PACKAGED_APPS[key]
+        # Fallback to x64 if arm64 not available
+        if PACKAGED_APPS["linux_x64"].exists():
+            return PACKAGED_APPS["linux_x64"]
+    elif system == "windows":
+        if PACKAGED_APPS["win32_x64"].exists():
+            return PACKAGED_APPS["win32_x64"]
     
     return None
 
@@ -67,9 +89,21 @@ def check_electron_ready() -> Tuple[bool, str]:
     if not package_json.exists():
         return False, "package.json not found in electron-helper/"
     
+    import platform
+    system = platform.system().lower()
+    
+    if system == "darwin":
+        package_cmd = "npm run package"
+    elif system == "linux":
+        package_cmd = "npm run package:linux"
+    elif system == "windows":
+        package_cmd = "npm run package:win"
+    else:
+        package_cmd = "npm run package"
+    
     return False, (
-        "Electron app not packaged. Run:\n"
-        "  cd electron-helper && npm install && npm run package"
+        f"Electron app not packaged. Run:\n"
+        f"  cd electron-helper && npm install && {package_cmd}"
     )
 
 
@@ -146,8 +180,24 @@ def capture_oauth_redirect(
             "error_description": "Could not find packaged Electron app"
         }
     
-    # Run the executable directly
-    executable = app_path / "Contents" / "MacOS" / "FrameioOAuth"
+    # Determine executable path based on platform
+    import platform
+    system = platform.system().lower()
+    
+    if system == "darwin":
+        # macOS: inside .app bundle
+        executable = app_path / "Contents" / "MacOS" / "FrameioOAuth"
+    elif system == "linux":
+        # Linux: executable directly in the directory
+        executable = app_path / "FrameioOAuth"
+    elif system == "windows":
+        # Windows: .exe in the directory
+        executable = app_path / "FrameioOAuth.exe"
+    else:
+        return None, None, {
+            "error": "unsupported_platform",
+            "error_description": f"Platform '{system}' is not yet supported"
+        }
     
     try:
         process = subprocess.Popen(
