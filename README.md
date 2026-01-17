@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-green.svg)](https://www.python.org/downloads/)
-[![Platform: macOS](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)](#platform-support)
+[![Platforms: macOS | Linux](https://img.shields.io/badge/Platforms-macOS%20%7C%20Linux-lightgrey.svg)](#platform-support)
 
 A Python CLI tool for authenticating with Frame.io using Adobe's Native App OAuth flow with PKCE (Proof Key for Code Exchange).
 
@@ -22,16 +22,16 @@ This solution uses a hybrid Python + Electron approach to automatically capture 
 | Platform | Status | Notes |
 |----------|--------|-------|
 | **macOS** | ✅ Supported | Universal binary (Intel + Apple Silicon) |
-| **Windows** | 🚧 Not yet | Electron helper needs Windows build |
-| **Linux** | 🚧 Not yet | Electron helper needs Linux build |
+| **Linux** | ✅ Supported | x64 and arm64 builds available |
+| **Windows** | 🚧 Experimental | Build script available, testing welcome |
 
-> **Note:** The core Python OAuth logic is cross-platform. Only the Electron helper (for capturing custom URL scheme redirects) is currently macOS-only. Contributions for Windows/Linux support are welcome!
+> **Note:** The core Python OAuth logic is cross-platform. The Electron helper (for capturing custom URL scheme redirects) supports macOS and Linux, with experimental Windows support.
 
 ## Prerequisites
 
 - Python 3.9+
-- Node.js 18+ (for Electron helper)
-- macOS (see [Platform Support](#platform-support))
+- **Node.js 18+** (for Electron helper) — verify with `node --version`
+- macOS, Linux, or Windows (see [Platform Support](#platform-support))
 - A Frame.io Developer Console application with Native App credentials
 
 ## Setup
@@ -47,14 +47,28 @@ pip install -r requirements.txt
 
 ### 2. Build the Electron helper
 
+**⚠️ Requires Node.js 18+** (check with `node --version`)
+
 ```bash
 cd electron-helper
 npm install
-npm run package
+```
+
+Then build for your platform:
+
+| Platform | Command | Output |
+|----------|---------|--------|
+| **macOS** | `npm run package` | `FrameioOAuth-darwin-universal/` |
+| **Linux** | `npm run package:linux` | `FrameioOAuth-linux-x64/` |
+| **Windows** | `npm run package:win` | `FrameioOAuth-win32-x64/` |
+
+```bash
+# Example for Linux:
+npm run package:linux
 cd ..
 ```
 
-This creates a `FrameioOAuth.app` that handles the custom URL scheme redirect.
+This creates the Electron app that handles the custom URL scheme redirect.
 
 ### 3. Configure your credentials
 
@@ -132,7 +146,7 @@ frameio-python-oauth/
 └── electron-helper/
     ├── package.json
     ├── main.js         # Electron URL scheme handler
-    └── FrameioOAuth-darwin-universal/  # Built app (after npm run package)
+    └── FrameioOAuth-{platform}/  # Built app (created by npm run package*)
 ```
 
 ## How PKCE Works
@@ -217,9 +231,18 @@ This implementation includes several security measures:
 
 ## Troubleshooting
 
+### "SyntaxError: Unexpected token ?" during npm install
+- **Cause:** Your Node.js version is too old. Electron requires Node.js 18+.
+- **Fix:** Upgrade Node.js to version 18 or later. Check your version with `node --version`.
+- If using `nvm`, run: `nvm install 18 && nvm use 18`
+- If using system packages, update via your package manager or download from [nodejs.org](https://nodejs.org/)
+
 ### "Failed to register URL scheme"
-- Make sure you've built the Electron app: `cd electron-helper && npm run package`
-- The packaged app needs to be in `electron-helper/FrameioOAuth-darwin-universal/`
+- Make sure you've built the Electron app for your platform:
+  - macOS: `cd electron-helper && npm run package`
+  - Linux: `cd electron-helper && npm run package:linux`
+  - Windows: `cd electron-helper && npm run package:win`
+- The packaged app needs to be in the appropriate directory (e.g., `FrameioOAuth-linux-x64/` for Linux)
 
 ### Browser shows "Failed to launch" error
 - Click "Open" when the browser asks to open FrameioOAuth
