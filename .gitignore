@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# Tokens (sensitive)
+.frameio-tokens.json
+
+# Electron
+electron-helper/node_modules/
+electron-helper/.npm-cache/
+electron-helper/FrameioOAuth-darwin-*/
+electron-helper/FrameioOAuth-win32-*/
+electron-helper/FrameioOAuth-linux-*/
+
+# OAuth temp files
+.frameio-oauth/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
