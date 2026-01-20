@@ -14,9 +14,11 @@
 const { app, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // Data directory for communication with Python
-const DATA_DIR = path.join(process.env.HOME, '.frameio-oauth');
+// Use os.homedir() instead of process.env.HOME for cross-platform reliability
+const DATA_DIR = path.join(os.homedir(), '.frameio-oauth');
 const ARGS_FILE = path.join(DATA_DIR, 'args.json');
 const RESULT_FILE = path.join(DATA_DIR, 'result.txt');
 
