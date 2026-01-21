@@ -151,18 +151,36 @@ def capture_oauth_redirect(
     ))
     
     # Ensure data directory exists with secure permissions (owner-only)
-    DATA_DIR.mkdir(exist_ok=True)
-    os.chmod(DATA_DIR, 0o700)  # rwx------
+    if verbose:
+        console.print(f"[dim]Home directory: {Path.home()}[/dim]")
+        console.print(f"[dim]Data directory: {DATA_DIR}[/dim]")
+    
+    try:
+        DATA_DIR.mkdir(exist_ok=True)
+        os.chmod(DATA_DIR, 0o700)  # rwx------
+    except Exception as e:
+        return None, None, {
+            "error": "dir_creation_failed",
+            "error_description": f"Failed to create data directory {DATA_DIR}: {e}"
+        }
     
     # Write args for Electron to read
     args_file = DATA_DIR / "args.json"
     result_file = DATA_DIR / "result.txt"
     
-    args_file.write_text(json.dumps({
-        "urlScheme": scheme_only,
-        "authUrl": auth_url
-    }))
-    os.chmod(args_file, 0o600)  # rw-------
+    try:
+        args_file.write_text(json.dumps({
+            "urlScheme": scheme_only,
+            "authUrl": auth_url
+        }))
+        os.chmod(args_file, 0o600)  # rw-------
+        if verbose:
+            console.print(f"[dim]Wrote config to: {args_file}[/dim]")
+    except Exception as e:
+        return None, None, {
+            "error": "config_write_failed",
+            "error_description": f"Failed to write config file: {e}"
+        }
     
     # Clean previous result
     if result_file.exists():
@@ -200,6 +218,9 @@ def capture_oauth_redirect(
         }
     
     try:
+        if verbose:
+            console.print(f"[dim]Launching: {executable}[/dim]")
+        
         process = subprocess.Popen(
             [str(executable)],
             stdout=subprocess.PIPE,
@@ -207,13 +228,36 @@ def capture_oauth_redirect(
             text=True
         )
         
+        # Give Electron a moment to start and check for immediate failures
+        time.sleep(1)
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            error_msg = stderr.strip() if stderr else stdout.strip()
+            return None, None, {
+                "error": "electron_crashed",
+                "error_description": f"Electron exited immediately: {error_msg}"
+            }
+        
+        if verbose:
+            console.print("[dim]Electron started successfully[/dim]")
+        
         console.print("[dim]Waiting for you to sign in and authorize...[/dim]")
         
         # Wait for result file or timeout
         start_time = time.time()
         captured_url = None
+        last_stderr_check = 0
         
         while (time.time() - start_time) < timeout:
+            # In verbose mode, periodically check stderr for debug output
+            if verbose and (time.time() - last_stderr_check) > 2:
+                import select
+                if select.select([process.stderr], [], [], 0)[0]:
+                    stderr_line = process.stderr.readline()
+                    if stderr_line:
+                        console.print(f"[dim]Electron: {stderr_line.strip()}[/dim]")
+                last_stderr_check = time.time()
+            
             # Check result file
             if result_file.exists():
                 captured_url = result_file.read_text().strip()
@@ -224,6 +268,11 @@ def capture_oauth_redirect(
             # Check if process ended
             if process.poll() is not None:
                 stdout, stderr = process.communicate()
+                
+                # Show any remaining stderr in verbose mode
+                if verbose and stderr:
+                    for line in stderr.strip().split('\n'):
+                        console.print(f"[dim]Electron: {line}[/dim]")
                 
                 # Check stdout for captured URL
                 for line in stdout.split('\n'):
