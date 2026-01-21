@@ -312,6 +312,26 @@ def capture_oauth_redirect(
             args_file.unlink()
         
         if not captured_url:
+            # Try to get any remaining output from Electron for debugging
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    stdout, stderr = process.communicate(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    stdout, stderr = process.communicate()
+            else:
+                stdout, stderr = process.communicate()
+            
+            if verbose and stderr:
+                console.print("[yellow]Electron stderr output:[/yellow]")
+                for line in stderr.strip().split('\n'):
+                    console.print(f"[dim]  {line}[/dim]")
+            if verbose and stdout:
+                console.print("[yellow]Electron stdout output:[/yellow]")
+                for line in stdout.strip().split('\n'):
+                    console.print(f"[dim]  {line}[/dim]")
+            
             return None, None, {
                 "error": "no_redirect",
                 "error_description": "Did not receive redirect within timeout"
