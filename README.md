@@ -115,8 +115,9 @@ python src/cli.py auth --headless
 
 This will:
 1. Print the authorization URL for you to open in any browser
-2. Wait for you to paste the redirect URL after authorization
-3. Complete the token exchange
+2. After you authorize, click **Cancel** when asked to open FrameioOAuth
+3. Copy the URL from your browser's address bar and paste it back
+4. Complete the token exchange
 
 Headless mode is auto-detected on Linux when no `$DISPLAY` is set.
 

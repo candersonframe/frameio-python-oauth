@@ -281,10 +281,10 @@ def authenticate_headless(
     
     console.print("\n[bold]Step 2:[/bold] Sign in and click 'Allow' to authorize the application.")
     
-    console.print("\n[bold]Step 3:[/bold] After authorization, your browser will try to open a URL starting with:")
-    console.print(f"         [cyan]{redirect_uri.split('://')[0]}://...[/cyan]")
-    console.print("         The browser may show an error since it can't handle this URL scheme.")
-    console.print("         [bold yellow]Copy the complete URL from your browser's address bar.[/bold yellow]")
+    console.print("\n[bold]Step 3:[/bold] Your browser will ask to open 'FrameioOAuth':")
+    console.print("         [bold yellow]Click 'Cancel'[/bold yellow] (do NOT click Open)")
+    console.print("         Then copy the URL from your browser's address bar.")
+    console.print(f"         It starts with: [cyan]{redirect_uri.split('://')[0]}://...[/cyan]")
     
     console.print()
     redirect_url = Prompt.ask("[bold]Paste the redirect URL here[/bold]")
