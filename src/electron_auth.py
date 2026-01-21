@@ -218,11 +218,19 @@ def capture_oauth_redirect(
         }
     
     try:
+        # Build command with platform-specific flags
+        cmd = [str(executable)]
+        
+        # On Linux, disable the Chrome sandbox to avoid SUID permission issues
+        # This is safe for a CLI tool that only handles OAuth redirects
+        if system == "linux":
+            cmd.append("--no-sandbox")
+        
         if verbose:
-            console.print(f"[dim]Launching: {executable}[/dim]")
+            console.print(f"[dim]Launching: {' '.join(cmd)}[/dim]")
         
         process = subprocess.Popen(
-            [str(executable)],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
