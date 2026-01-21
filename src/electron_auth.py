@@ -43,6 +43,68 @@ PACKAGED_APPS = {
 DATA_DIR = Path.home() / ".frameio-oauth"
 
 
+def register_linux_url_scheme(url_scheme: str, executable_path: Path, verbose: bool = False) -> bool:
+    """
+    Register a custom URL scheme handler on Linux by creating a .desktop file.
+    
+    Args:
+        url_scheme: The URL scheme to register (e.g., "adobe+xxx")
+        executable_path: Path to the Electron executable
+        verbose: Whether to print debug output
+    
+    Returns:
+        True if registration succeeded, False otherwise
+    """
+    applications_dir = Path.home() / ".local" / "share" / "applications"
+    applications_dir.mkdir(parents=True, exist_ok=True)
+    
+    desktop_file = applications_dir / "frameio-oauth.desktop"
+    
+    # Create the .desktop file content
+    desktop_content = f"""[Desktop Entry]
+Name=FrameioOAuth
+Comment=Frame.io OAuth redirect handler
+Exec={executable_path} --no-sandbox %u
+Type=Application
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/{url_scheme};
+"""
+    
+    try:
+        desktop_file.write_text(desktop_content)
+        if verbose:
+            console.print(f"[dim]Created desktop file: {desktop_file}[/dim]")
+        
+        # Register with xdg-mime
+        result = subprocess.run(
+            ["xdg-mime", "default", "frameio-oauth.desktop", f"x-scheme-handler/{url_scheme}"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            if verbose:
+                console.print(f"[yellow]xdg-mime warning: {result.stderr}[/yellow]")
+        
+        # Update the desktop database
+        subprocess.run(
+            ["update-desktop-database", str(applications_dir)],
+            capture_output=True,
+            text=True
+        )
+        
+        if verbose:
+            console.print(f"[dim]Registered URL scheme handler: {url_scheme}[/dim]")
+        
+        return True
+        
+    except Exception as e:
+        if verbose:
+            console.print(f"[yellow]Failed to register URL scheme: {e}[/yellow]")
+        return False
+
+
 def find_packaged_app() -> Optional[Path]:
     """Find the packaged Electron app for the current platform."""
     import platform
@@ -208,6 +270,11 @@ def capture_oauth_redirect(
     elif system == "linux":
         # Linux: executable directly in the directory
         executable = app_path / "FrameioOAuth"
+        
+        # On Linux, register the URL scheme via .desktop file before launching
+        # Electron's setAsDefaultProtocolClient doesn't work reliably on Linux
+        if not register_linux_url_scheme(scheme_only, executable, verbose):
+            console.print("[yellow]Warning: Could not register URL scheme automatically[/yellow]")
     elif system == "windows":
         # Windows: .exe in the directory
         executable = app_path / "FrameioOAuth.exe"

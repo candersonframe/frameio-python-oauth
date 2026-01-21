@@ -145,15 +145,20 @@ app.whenReady().then(() => {
   }
   
   // Register as the URL scheme handler
-  console.error('Attempting to register URL scheme: ' + urlScheme);
-  const success = app.setAsDefaultProtocolClient(urlScheme);
-  console.error('Registered scheme: ' + urlScheme + ' - ' + (success ? 'OK' : 'FAILED'));
-  
-  if (!success) {
-    console.log('ERROR:Failed to register URL scheme');
-    console.error('URL scheme registration failed. On Linux, this may require a desktop environment.');
-    app.quit();
-    return;
+  // On Linux, Python pre-registers via .desktop file, so we skip this step
+  if (process.platform !== 'linux') {
+    console.error('Attempting to register URL scheme: ' + urlScheme);
+    const success = app.setAsDefaultProtocolClient(urlScheme);
+    console.error('Registered scheme: ' + urlScheme + ' - ' + (success ? 'OK' : 'FAILED'));
+    
+    if (!success) {
+      console.log('ERROR:Failed to register URL scheme');
+      console.error('URL scheme registration failed.');
+      app.quit();
+      return;
+    }
+  } else {
+    console.error('Linux: URL scheme pre-registered by Python via .desktop file');
   }
   
   // Clear any previous result
