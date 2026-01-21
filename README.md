@@ -105,6 +105,21 @@ For debugging, use the `--verbose` flag to see detailed information:
 python src/cli.py auth --verbose
 ```
 
+### Headless/Server Mode
+
+For servers without a display (SSH sessions, Docker, WSL, etc.), use `--headless`:
+
+```bash
+python src/cli.py auth --headless
+```
+
+This will:
+1. Print the authorization URL for you to open in any browser
+2. Wait for you to paste the redirect URL after authorization
+3. Complete the token exchange
+
+Headless mode is auto-detected on Linux when no `$DISPLAY` is set.
+
 ### Test Connection
 
 ```bash

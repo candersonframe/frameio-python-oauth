@@ -25,6 +25,7 @@ from auth import (
     load_tokens,
     clear_tokens,
     get_valid_token,
+    is_headless,
     TOKEN_FILE,
 )
 from electron_auth import check_electron_ready
@@ -66,13 +67,16 @@ def get_config():
 
 @app.command()
 def auth(
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed debug information")
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed debug information"),
+    headless: bool = typer.Option(False, "--headless", "-H", help="Use manual/headless mode (no browser auto-open)")
 ):
     """
     Authenticate with Frame.io using Adobe OAuth + PKCE.
     
     Opens a browser for you to sign in with your Adobe ID.
     After authorization, tokens are saved locally.
+    
+    Use --headless for servers without a display (SSH, Docker, etc.)
     """
     console.print(Panel(
         "[bold]Frame.io OAuth Authentication[/bold]\n\n"
@@ -82,15 +86,25 @@ def auth(
         border_style="blue"
     ))
     
-    # Check Electron helper
-    is_ready, message = check_electron_ready()
-    if not is_ready:
-        console.print(Panel(
-            f"[bold red]Electron helper not ready[/bold red]\n\n{message}",
-            title="⚠️ Setup Required",
-            border_style="red"
-        ))
-        raise typer.Exit(1)
+    # Check if headless mode should be used
+    use_headless = headless or is_headless()
+    
+    if use_headless and not headless:
+        # Auto-detected headless mode
+        console.print("[yellow]No display detected - using headless/manual mode[/yellow]")
+        console.print("[dim]Tip: Use --headless flag to skip this detection[/dim]\n")
+    
+    # In headless mode, skip Electron check
+    if not use_headless:
+        # Check Electron helper
+        is_ready, message = check_electron_ready()
+        if not is_ready:
+            console.print(Panel(
+                f"[bold red]Electron helper not ready[/bold red]\n\n{message}",
+                title="⚠️ Setup Required",
+                border_style="red"
+            ))
+            raise typer.Exit(1)
     
     # Get config
     client_id, redirect_uri, scopes = get_config()
@@ -108,7 +122,8 @@ def auth(
         redirect_uri=redirect_uri,
         scopes=scopes,
         timeout=120,
-        verbose=verbose
+        verbose=verbose,
+        headless=headless
     )
     
     if access_token:

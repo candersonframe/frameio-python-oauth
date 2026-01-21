@@ -215,12 +215,154 @@ def get_valid_token(client_id: str) -> Optional[str]:
     return tokens.get("access_token")
 
 
+def is_headless() -> bool:
+    """
+    Detect if running in a headless environment (no display).
+    
+    Returns:
+        True if headless, False if display is available
+    """
+    import platform
+    system = platform.system().lower()
+    
+    if system == "linux":
+        # Check for DISPLAY or WAYLAND_DISPLAY
+        display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+        return not display
+    elif system == "darwin":
+        # macOS always has a display (even via SSH, you can use pbcopy etc.)
+        return False
+    elif system == "windows":
+        # Windows typically has a display
+        return False
+    
+    return False
+
+
+def authenticate_headless(
+    client_id: str,
+    redirect_uri: str,
+    scopes: str,
+    verbose: bool = False
+) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, Any]]]:
+    """
+    Perform OAuth authentication in headless/manual mode.
+    
+    User manually opens the URL in their browser and pastes back
+    the redirect URL after authorization.
+    
+    Args:
+        client_id: Your application's client ID
+        redirect_uri: The registered redirect URI (custom URL scheme)
+        scopes: Space-separated OAuth scopes
+        verbose: Show debug output
+    
+    Returns:
+        Tuple of (access_token, refresh_token, token_info) or (None, None, error_dict)
+    """
+    from rich.prompt import Prompt
+    
+    # Generate PKCE parameters
+    code_verifier, code_challenge, state = generate_pkce_pair()
+    
+    # Build authorization URL
+    auth_url = build_auth_url(client_id, redirect_uri, scopes, code_challenge, state)
+    
+    console.print(Panel(
+        "[bold]Headless/Manual Authentication Mode[/bold]\n\n"
+        "Since no display is available (or --headless was specified),\n"
+        "you'll need to complete authentication manually.",
+        title="🔐 Manual OAuth Flow",
+        border_style="blue"
+    ))
+    
+    console.print("\n[bold]Step 1:[/bold] Open this URL in a browser (on any device):\n")
+    console.print(Panel(auth_url, title="Authorization URL", border_style="cyan"))
+    
+    console.print("\n[bold]Step 2:[/bold] Sign in and click 'Allow' to authorize the application.")
+    
+    console.print("\n[bold]Step 3:[/bold] After authorization, your browser will try to open a URL starting with:")
+    console.print(f"         [cyan]{redirect_uri.split('://')[0]}://...[/cyan]")
+    console.print("         The browser may show an error since it can't handle this URL scheme.")
+    console.print("         [bold yellow]Copy the complete URL from your browser's address bar.[/bold yellow]")
+    
+    console.print()
+    redirect_url = Prompt.ask("[bold]Paste the redirect URL here[/bold]")
+    
+    if not redirect_url:
+        return None, None, {
+            "error": "no_input",
+            "error_description": "No redirect URL provided"
+        }
+    
+    # Parse the redirect URL
+    try:
+        parsed = urlparse(redirect_url)
+        params = parse_qs(parsed.query)
+        
+        if verbose:
+            console.print(f"[dim]Parsed URL params: {list(params.keys())}[/dim]")
+        
+        # Check for errors
+        if "error" in params:
+            return None, None, {
+                "error": params["error"][0],
+                "error_description": params.get("error_description", ["Authorization denied"])[0]
+            }
+        
+        # Get authorization code
+        if "code" not in params:
+            return None, None, {
+                "error": "no_code",
+                "error_description": "No authorization code found in the URL. Make sure you copied the complete URL."
+            }
+        
+        code = params["code"][0]
+        returned_state = params.get("state", [None])[0]
+        
+        # Verify state
+        if returned_state != state:
+            return None, None, {
+                "error": "state_mismatch",
+                "error_description": "State parameter mismatch - possible CSRF attack. Authentication aborted."
+            }
+        
+    except Exception as e:
+        return None, None, {
+            "error": "parse_error",
+            "error_description": f"Failed to parse redirect URL: {e}"
+        }
+    
+    # Exchange code for tokens
+    console.print("\n✓ Authorization code received, exchanging for token...")
+    
+    try:
+        token_data = exchange_code_for_tokens(
+            code=code,
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier
+        )
+        
+        save_tokens(token_data)
+        
+        return (
+            token_data.get("access_token"),
+            token_data.get("refresh_token"),
+            token_data
+        )
+        
+    except Exception as e:
+        return None, None, {"error": "token_exchange", "error_description": str(e)}
+
+
 def authenticate(
     client_id: str,
     redirect_uri: str,
     scopes: str,
     timeout: int = 120,
-    verbose: bool = False
+    verbose: bool = False,
+    headless: bool = False
 ) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, Any]]]:
     """
     Perform the complete OAuth authentication flow.
@@ -230,10 +372,20 @@ def authenticate(
         redirect_uri: The registered redirect URI (custom URL scheme)
         scopes: Space-separated OAuth scopes
         timeout: Seconds to wait for redirect
+        verbose: Show debug output
+        headless: Force headless/manual mode
     
     Returns:
         Tuple of (access_token, refresh_token, token_info) or (None, None, error_dict)
     """
+    # Check if we should use headless mode
+    use_headless = headless or is_headless()
+    
+    if use_headless:
+        if verbose:
+            console.print("[dim]Using headless/manual authentication mode[/dim]")
+        return authenticate_headless(client_id, redirect_uri, scopes, verbose)
+    
     # Generate PKCE parameters
     code_verifier, code_challenge, state = generate_pkce_pair()
     
