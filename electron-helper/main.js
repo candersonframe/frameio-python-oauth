@@ -18,9 +18,17 @@ const os = require('os');
 
 // Data directory for communication with Python
 // Use os.homedir() instead of process.env.HOME for cross-platform reliability
-const DATA_DIR = path.join(os.homedir(), '.frameio-oauth');
+const HOME_DIR = os.homedir();
+const DATA_DIR = path.join(HOME_DIR, '.frameio-oauth');
 const ARGS_FILE = path.join(DATA_DIR, 'args.json');
 const RESULT_FILE = path.join(DATA_DIR, 'result.txt');
+
+// Debug: Log paths on startup
+console.error('Platform:', process.platform);
+console.error('Home directory:', HOME_DIR);
+console.error('Data directory:', DATA_DIR);
+console.error('Args file:', ARGS_FILE);
+console.error('Args file exists:', fs.existsSync(ARGS_FILE));
 
 // Timeout (2 minutes)
 const TIMEOUT_MS = 120000;
@@ -137,11 +145,13 @@ app.whenReady().then(() => {
   }
   
   // Register as the URL scheme handler
+  console.error('Attempting to register URL scheme: ' + urlScheme);
   const success = app.setAsDefaultProtocolClient(urlScheme);
   console.error('Registered scheme: ' + urlScheme + ' - ' + (success ? 'OK' : 'FAILED'));
   
   if (!success) {
     console.log('ERROR:Failed to register URL scheme');
+    console.error('URL scheme registration failed. On Linux, this may require a desktop environment.');
     app.quit();
     return;
   }
@@ -159,8 +169,17 @@ app.whenReady().then(() => {
   }
   
   // Open the authorization URL in the default browser
-  console.error('Opening browser...');
-  shell.openExternal(authUrl);
+  console.error('Opening browser to: ' + authUrl.substring(0, 80) + '...');
+  shell.openExternal(authUrl)
+    .then(() => {
+      console.error('Browser opened successfully');
+    })
+    .catch((err) => {
+      console.error('Failed to open browser:', err.message);
+      console.log('ERROR:Failed to open browser - ' + err.message);
+      // On Linux without xdg-open, provide manual URL
+      console.log('MANUAL_URL:' + authUrl);
+    });
   
   // Poll for result file (in case a new instance writes it)
   const pollInterval = setInterval(() => {
