@@ -281,10 +281,19 @@ def authenticate_headless(
     
     console.print("\n[bold]Step 2:[/bold] Sign in and click 'Allow' to authorize the application.")
     
-    console.print("\n[bold]Step 3:[/bold] Your browser will ask to open 'FrameioOAuth':")
-    console.print("         [bold yellow]Click 'Cancel'[/bold yellow] (do NOT click Open)")
-    console.print("         Then copy the URL from your browser's address bar.")
-    console.print(f"         It starts with: [cyan]{redirect_uri.split('://')[0]}://...[/cyan]")
+    console.print("\n[bold]Step 3:[/bold] Capture the redirect URL using ONE of these methods:")
+    console.print()
+    console.print("         [bold cyan]Method A - Firefox (easiest):[/bold cyan]")
+    console.print("         Use Firefox - it shows the URL in the address bar even when")
+    console.print("         it can't handle the scheme. Just copy it from there.")
+    console.print()
+    console.print("         [bold cyan]Method B - Chrome/Safari DevTools:[/bold cyan]")
+    console.print("         1. Before clicking 'Allow', open DevTools (Cmd+Option+I or F12)")
+    console.print("         2. Go to the [bold]Network[/bold] tab")
+    console.print("         3. Click 'Allow' in the OAuth page")
+    console.print("         4. Find the redirect request and copy the URL")
+    console.print()
+    console.print(f"         The URL starts with: [cyan]{redirect_uri.split('://')[0]}://...[/cyan]")
     
     console.print()
     redirect_url = Prompt.ask("[bold]Paste the redirect URL here[/bold]")
